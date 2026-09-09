@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-07T09:28:55.6810359Z",
+  "openConnect": {
+    "repository": "https://gitlab.com/openconnect/openconnect.git",
+    "commit": "f17fe20d337b400b476a73326de642a9f63b59c8",
+    "sourcePath": "native/src/openconnect",
+    "license": "LGPL-2.1-only",
+    "licenseFile": "native/src/openconnect/COPYING.LGPL"
+  },
+  "androidNdk": {
+    "release": "r28c",
+    "revision": "28.2.13676358",
+    "packagePath": "ndk;28.2.13676358",
+    "archiveUrl": "https://dl.google.com/android/repository/android-ndk-r28c-linux.zip",
+    "checksumAlgorithm": "SHA1",
+    "expectedChecksum": "a7b54a5de87fecd125a17d54f73c446199e72a64",
+    "actualChecksum": "a7b54a5de87fecd125a17d54f73c446199e72a64",
+    "sizeBytes": 722261334
+  },
+  "googleRepositoryMetadata": {
+    "url": "https://dl.google.com/android/repository/repository2-3.xml",
+    "sha256": "e54be10c0e177520642ec8933a45a73193a4773bfc056a02228e943660ccd68f"
+  }
+}

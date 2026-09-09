@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.GeekOCTunnel" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">@color/geek_icon_background</item>
+        <item name="android:statusBarColor">@color/geek_icon_background</item>
+        <item name="android:navigationBarColor">@color/geek_icon_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

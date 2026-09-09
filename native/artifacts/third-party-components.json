@@ -1,0 +1,44 @@
+[
+  {
+    "name": "OpenConnect",
+    "version": "9.12+f17fe20",
+    "license": "LGPL-2.1-only",
+    "linked": "shared JNI library"
+  },
+  {
+    "name": "libxml2",
+    "version": "2.13.4",
+    "license": "MIT",
+    "linked": "static into libopenconnect.so"
+  },
+  {
+    "name": "GMP",
+    "version": "6.3.0",
+    "license": "LGPL-3.0-or-later OR GPL-2.0-or-later",
+    "linked": "static into libopenconnect.so"
+  },
+  {
+    "name": "Nettle",
+    "version": "3.10",
+    "license": "LGPL-3.0-or-later OR GPL-2.0-or-later",
+    "linked": "static into libopenconnect.so"
+  },
+  {
+    "name": "GnuTLS",
+    "version": "3.7.11",
+    "license": "LGPL-2.1-or-later",
+    "linked": "static into libopenconnect.so"
+  },
+  {
+    "name": "stoken",
+    "version": "0.93",
+    "license": "LGPL-2.1-or-later",
+    "linked": "static into libopenconnect.so"
+  },
+  {
+    "name": "LZ4",
+    "version": "1.10.0",
+    "license": "BSD-2-Clause",
+    "linked": "static into libopenconnect.so"
+  }
+]

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "buildStartedUtc": "2026-08-07T09:52:40.0656931Z",
+  "buildCompletedUtc": "2026-08-07T09:59:32.1558734Z",
+  "wslDistribution": "Debian",
+  "wslBuildRoot": "/tmp/tunnelkeeper-openconnect-f17fe20d337b-r28c-20260807T095240Z",
+  "openConnect": {
+    "repository": "https://gitlab.com/openconnect/openconnect.git",
+    "commit": "f17fe20d337b400b476a73326de642a9f63b59c8",
+    "version": "9.12",
+    "apiVersion": "5.9",
+    "officialAndroidMakefileSha256": "084389547b594e648e630b7f51630d9f2b7f0dcb9ca8d0f6a465d1961ec45749",
+    "officialJniSha256": "5b9e3e43577c464300ac8b6f44e7992c5e728b3cada026b07dbd52858021d321",
+    "officialJavaBindingSha256": "902c881ece7a501cb06e5aed0a2b114aa98497682b190fd1d1b2d94120fac2fa"
+  },
+  "androidNdk": {
+    "release": "r28c",
+    "revision": "28.2.13676358",
+    "archiveSha1": "a7b54a5de87fecd125a17d54f73c446199e72a64"
+  },
+  "apiLevel": 26,
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "jobs": 12,
+  "linkerPageSizeFlag": "-Wl,-z,max-page-size=16384",
+  "commands": [
+    "make -C /tmp/tunnelkeeper-openconnect-f17fe20d337b-r28c-20260807T095240Z/openconnect/android ARCH=arm64 NDK=/tmp/tunnelkeeper-openconnect-f17fe20d337b-r28c-20260807T095240Z/android-ndk-r28c API_LEVEL=26 EXTRA_LDFLAGS=-Wl,-z,max-page-size=16384 -j12",
+    "make -C /tmp/tunnelkeeper-openconnect-f17fe20d337b-r28c-20260807T095240Z/openconnect/android ARCH=x86_64 NDK=/tmp/tunnelkeeper-openconnect-f17fe20d337b-r28c-20260807T095240Z/android-ndk-r28c API_LEVEL=26 EXTRA_LDFLAGS=-Wl,-z,max-page-size=16384 -j12"
+  ],
+  "artifacts": [
+    {
+      "abi": "arm64-v8a",
+      "architecture": "arm64",
+      "kind": "jniLib",
+      "path": "app/src/main/jniLibs/arm64-v8a/libopenconnect.so",
+      "basename": "libopenconnect.so",
+      "sizeBytes": 3767312,
+      "sha256": "41c0b3b80961546bbe4f0ea3d40a4eb4e7393d9966eb5a639903eac2a899cd77",
+      "elf": {
+        "machine": "AArch64",
+        "minimumLoadAlignmentBytes": 16384,
+        "loadAlignmentsBytes": [
+          16384
+        ],
+        "soname": "libopenconnect.so",
+        "neededLibraries": [
+          "libz.so",
+          "libm.so",
+          "liblog.so",
+          "libdl.so",
+          "libc.so"
+        ]
+      }
+    },
+    {
+      "abi": "arm64-v8a",
+      "architecture": "arm64",
+      "kind": "unstrippedSymbols",
+      "path": "native/artifacts/arm64-v8a/symbols/libopenconnect.so",
+      "basename": "libopenconnect.so",
+      "sizeBytes": 5001448,
+      "sha256": "185c0b141a72d64e0730c2827a6e0d33548d3113732f7724df6c25e4e2622f08",
+      "elf": {
+        "machine": "AArch64",
+        "minimumLoadAlignmentBytes": 16384,
+        "loadAlignmentsBytes": [
+          16384
+        ],
+        "soname": "libopenconnect.so",
+        "neededLibraries": [
+          "libz.so",
+          "libm.so",
+          "liblog.so",
+          "libdl.so",
+          "libc.so"
+        ]
+      }
+    },
+    {
+      "abi": "x86_64",
+      "architecture": "x86_64",
+      "kind": "jniLib",
+      "path": "app/src/main/jniLibs/x86_64/libopenconnect.so",
+      "basename": "libopenconnect.so",
+      "sizeBytes": 3937488,
+      "sha256": "05824d7b152fc01748673ff3b0dc3640d7efc813e74e55ac3694b08fed69695a",
+      "elf": {
+        "machine": "Advanced Micro Devices X86-64",
+        "minimumLoadAlignmentBytes": 16384,
+        "loadAlignmentsBytes": [
+          16384
+        ],
+        "soname": "libopenconnect.so",
+        "neededLibraries": [
+          "libz.so",
+          "libm.so",
+          "liblog.so",
+          "libdl.so",
+          "libc.so"
+        ]
+      }
+    },
+    {
+      "abi": "x86_64",
+      "architecture": "x86_64",
+      "kind": "unstrippedSymbols",
+      "path": "native/artifacts/x86_64/symbols/libopenconnect.so",
+      "basename": "libopenconnect.so",
+      "sizeBytes": 5010512,
+      "sha256": "189eda26f3174dabae41fc795ec6f87632108a0b17af4cf4a4e56b6fff795efb",
+      "elf": {
+        "machine": "Advanced Micro Devices X86-64",
+        "minimumLoadAlignmentBytes": 16384,
+        "loadAlignmentsBytes": [
+          16384
+        ],
+        "soname": "libopenconnect.so",
+        "neededLibraries": [
+          "libz.so",
+          "libm.so",
+          "liblog.so",
+          "libdl.so",
+          "libc.so"
+        ]
+      }
+    }
+  ],
+  "licensesDirectory": "native/artifacts/licenses",
+  "thirdPartyComponents": "native/artifacts/third-party-components.json"
+}

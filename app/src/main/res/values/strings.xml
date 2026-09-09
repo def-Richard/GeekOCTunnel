@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">GeekOCTunnel</string>
+    <string name="vpn_channel_name">VPN connection</string>
+    <string name="quick_settings_tile_label">GeekOCTunnel</string>
+    <string name="quick_settings_tile_connected">已连接 · %1$s</string>
+    <string name="quick_settings_tile_connecting">正在连接 · %1$s</string>
+    <string name="quick_settings_tile_waiting_for_authentication">等待认证 · %1$s</string>
+    <string name="quick_settings_tile_disconnecting">正在断开</string>
+    <string name="quick_settings_tile_disconnected">未连接 · %1$s</string>
+    <string name="quick_settings_tile_failed">连接失败</string>
+    <string name="quick_settings_tile_not_configured">尚未配置</string>
+</resources>
