@@ -4,7 +4,7 @@
 
 在手机上连接自建或组织提供的 VPN，访问受保护的内网资源。保留常用服务器，一键连接，并通过清晰的连接日志查看网关、地址、DNS 和路由。
 
-[下载最新 APK](https://github.com/numbchan/GeekOCTunnel/releases/latest) · [使用与构建](#从源码构建) · [反馈问题](https://github.com/numbchan/GeekOCTunnel/issues) · [隐私说明](PRIVACY.md)
+[下载最新 APK](https://github.com/def-Richard/GeekOCTunnel/releases/latest) · [使用与构建](#从源码构建) · [反馈问题](https://github.com/def-Richard/GeekOCTunnel/issues) · [隐私说明](PRIVACY.md)
 
 > 本项目是客户端，不提供 VPN 服务器、账号或订阅服务，也不是 Cisco 官方产品。你需要自己的兼容网关和登录凭据。当前发布为 **debug 签名的早期测试版本**，不代表生产级安全认证。
 
@@ -12,12 +12,13 @@
 
 | 功能 | 说明 |
 | --- | --- |
-| 多服务器配置 | 保存名称、HTTPS 地址及可选端口，快速切换目标服务器 |
+| 多服务器并行 | 选择连接组合，同时连接多个网关，按服务器下发的 IPv4 目标网段分流 |
 | 网关认证 | 从服务器读取 SSL Group，使用用户名和密码登录；切换 Group 时刷新认证表单 |
 | 记住登录信息 | 可选保存账号、密码和 Group，使用 Android Keystore 支持的 AES-GCM 加密 |
 | 快捷连接 | Android 快速设置磁贴可连接、断开；需要授权或输入时打开应用 |
 | 全隧道与分流 | 按网关下发的路由、DNS、MTU 建立 Android VPN |
 | 连接诊断 | 在应用内查看连接状态、VPN 地址、包含/排除路由与 IPv6 策略 |
+| 已连接配置汇总 | 状态下方显示全部成功连接的配置名，没有成功连接时留空；较长名称可横向滑动查看 |
 
 适合已经部署 **ocserv**，或使用兼容 **AnyConnect** 网关、希望获得简洁连接体验的用户。当前只面向这一协议族；不支持 WireGuard、OpenVPN，也不承诺支持浏览器 SSO、复杂 MFA 或所有企业认证流程。
 
@@ -25,10 +26,23 @@
 
 **设备要求：Android 8.0（API 26）及以上，ARM64（`arm64-v8a`）。**
 
-1. 从 [Releases](https://github.com/numbchan/GeekOCTunnel/releases) 下载 `GeekOCTunnel-v…-debug.apk`，按 Android 提示允许安装。
+1. 从 [Releases](https://github.com/def-Richard/GeekOCTunnel/releases) 下载 `GeekOCTunnel-v…-debug.apk`，按 Android 提示允许安装。
 2. 打开应用，新增服务器，例如 `https://vpn.example.com:443`。
 3. 点击连接，授权 Android VPN；选择服务器提供的 Group，输入用户名和密码。
 4. 按需勾选记住登录信息。连接后可通过应用或快速设置磁贴断开。
+
+### 同时连接多个服务器
+
+添加各服务器配置后，点击「并行连接」，勾选需要的服务器，再点击「连接所选」。应用分别完成账号和 SSL Group 认证，收齐配置后只建立一个 Android VPN 接口。单个配置仍可通过主开关直接连接。
+
+- 连接后，在配置下拉菜单中查看各服务器状态、单独断开或重连；「全部断开」结束整个组合。
+- 快速设置磁贴显示汇总状态，点击可全部断开；再次连接会恢复最近保存的组合，需要输入凭据时打开应用。
+- 多连接支持互不重叠的 IPv4 目标网段，转发 TCP、UDP 和 ICMP。不同网关分配相同的 VPN 客户端地址也可以使用。
+- 重叠网段、多个默认路由、IPv6 多连接会被明确拒绝；单服务器保留全隧道和 IPv6 支持。
+- 断开的站点保留路由并丢弃对应流量，避免误送到其他服务器或公网；其余站点保持连接。重连时如路由改变或 MTU 低于共享接口，需重新连接整个组合。
+- Android 重建 VPN 接口会中断已有 TCP 连接，因此运行期间只允许重连当前组合内的站点；添加新的站点需先全部断开，再选择组合。
+- 若某站点在首次取得路由前失败或被取消，其他站点可正常连接；重试这个尚未安装路由的站点时，需要全部断开并重新连接组合。
+- DNS 沿用首个完成配置的服务器；未下发 DNS 时使用系统默认。当前没有按域名选择不同服务器的 DNS 分流。
 
 Android 同一时间通常只允许一个 VPN 服务运行，连接本应用可能替换其他 VPN。若更新提示签名不一致，需要使用相同签名的安装包；卸载旧版会删除本地配置和保存的凭据。
 
@@ -82,13 +96,14 @@ Android 同一时间通常只允许一个 VPN 服务运行，连接本应用可�
 
 同步和构建脚本默认读取 `HTTPS_PROXY`，也可显式传入 `-ProxyUrl`。若同步时自定义 `-CacheRoot`，构建时使用相同目录。依赖安装脚本可单独传入 `-ProxyUrl`，在默认 WSL 发行版执行，请先确保其为你的构建环境。
 
-默认 APK 仅包含 ARM64。仓库中的 `x86_64` 原生库供开发者调整 ABI 配置后进行模拟器验证，默认不会打进 APK。构建清单和现有 APK 的原生库均记录了 16 KB 页对齐信息。
+默认 APK 仅包含 ARM64。模拟器验证可执行发布脚本的 `-Abi x86_64 -BuildDeviceTests`，产物文件名包含 `x86_64`，独立递增版本，默认不会打进手机 APK。构建清单和现有 APK 的原生库均记录了 16 KB 页对齐信息。
 
 ## 项目结构
 
 ```text
 app/src/main/           Android 界面、配置、凭据存储与 VPN 生命周期
 app/src/test/           认证、路由、凭据及快捷磁贴等单元测试
+app/src/androidTest/    两个真实网关的认证、分流和独立断线验证（读取应用加密保存的凭据）
 app/src/main/jniLibs/   OpenConnect 原生库
 native/                固定源码信息、构建清单和第三方许可证
 scripts/               APK 发布、原生库构建和校验脚本

@@ -49,6 +49,18 @@ class ProfileRepository(context: Context) {
         check(preferences.edit().putString(KEY_SELECTED_PROFILE_ID, profileId).commit())
     }
 
+    fun saveQuickConnectProfiles(profileIds: List<String>) {
+        check(preferences.edit().putStringSet(KEY_QUICK_CONNECT_IDS, profileIds.toSet()).commit())
+    }
+
+    fun loadQuickConnectProfiles(): List<ConnectionProfile> {
+        val profiles = load()
+        val ids = preferences.getStringSet(KEY_QUICK_CONNECT_IDS, emptySet()).orEmpty()
+        return profiles.filter { it.id in ids }.ifEmpty {
+            profiles.filter { it.id == loadSelectedProfileId(profiles) }
+        }
+    }
+
     fun remove(profileId: String) {
         save(load().filterNot { it.id == profileId })
     }
@@ -71,5 +83,6 @@ class ProfileRepository(context: Context) {
         const val PREFERENCES_NAME = "connection_profiles"
         const val KEY_PROFILES = "profiles"
         const val KEY_SELECTED_PROFILE_ID = "selected_profile_id"
+        const val KEY_QUICK_CONNECT_IDS = "quick_connect_profile_ids"
     }
 }

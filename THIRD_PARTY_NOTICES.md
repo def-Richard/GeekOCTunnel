@@ -16,7 +16,7 @@ The dependency libraries above are statically linked into the shared OpenConnect
 
 ## Source and rebuilding
 
-The GitHub Release also provides `GeekOCTunnel-v0.1.5-native-sources.zip`, containing the pinned OpenConnect source and all six native dependency source archives, verified against the upstream Makefile checksums. License texts remain inside the source archives.
+Each GitHub Release also provides `GeekOCTunnel-v<version>-native-sources.zip`, containing the pinned OpenConnect source and all six native dependency source archives, verified against the upstream Makefile checksums. License texts remain inside the source archives. The native source bundle is unchanged in v0.1.22 because the bundled OpenConnect library and its dependencies have not changed.
 
 The pinned OpenConnect source is available from [the upstream repository](https://gitlab.com/openconnect/openconnect/-/tree/f17fe20d337b400b476a73326de642a9f63b59c8). Its `android/Makefile` and `android/fetch.sh` specify the native dependency versions, source download locations and build process. The repository scripts fetch that revision, verify the NDK checksum and build the library with 16 KB page alignment.
 

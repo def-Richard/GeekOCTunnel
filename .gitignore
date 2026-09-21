@@ -24,6 +24,14 @@ app/build/
 /releases/
 /.publish-apk.lock
 
+# Runtime verification inputs and device evidence are private, even outside build/.
+verification-input.json
+verification-targets.json
+verification-*-results.*
+verification-connection-log.txt
+phone-*.png
+phone-*.xml
+
 # Re-created by the pinned native build scripts.
 /native/src/openconnect/
 /native/artifacts/logs/

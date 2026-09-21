@@ -18,6 +18,8 @@ val appVersionCode = providers.gradleProperty("appVersionCode")
 val appVersionName = providers.gradleProperty("appVersionName")
     .orElse(checkNotNull(versionProperties.getProperty("VERSION_NAME")))
     .get()
+val testAbi = providers.gradleProperty("testAbi").orElse("arm64-v8a").get()
+require(testAbi in setOf("arm64-v8a", "x86_64")) { "Unsupported ABI" }
 
 android {
     namespace = "com.richard.tunnelkeeper"
@@ -31,7 +33,7 @@ android {
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
-            abiFilters += "arm64-v8a"
+            abiFilters += testAbi
         }
     }
 
@@ -59,8 +61,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
 
 extensions.configure<BasePluginExtension> {
-    archivesName.set("GeekOCTunnel-v$appVersionName-$appVersionCode")
+    archivesName.set("GeekOCTunnel-v$appVersionName-$appVersionCode" + if (testAbi == "arm64-v8a") "" else "-$testAbi")
 }

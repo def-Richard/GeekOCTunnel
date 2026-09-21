@@ -40,16 +40,21 @@ class SecureTunnelVpnService : VpnService() {
         var saveOnSuccess: Boolean,
         var activeChallengeId: String?,
         var authenticationRestartScheduled: Boolean,
+        var job: Job? = null,
+        var finishing: Boolean = false,
+        var pendingDiagnostics: TunnelDiagnostics? = null,
     )
 
     private val engine: OpenConnectEngine = NativeOpenConnectEngine()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val commandMutex = Mutex()
     private lateinit var credentialStore: SecureCredentialStore
-    private var activeAttempt: ActiveAttempt? = null
-    private var engineJob: Job? = null
+    private val attempts = linkedMapOf<String, ActiveAttempt>()
+    private var router: AndroidMultiTunnel? = null
+    private var routerToken: Any? = null
     private var latestStartId = 0
     private var revocationInProgress = false
+    private var startingBatch = false
 
     override fun onCreate() {
         super.onCreate()
@@ -63,16 +68,27 @@ class SecureTunnelVpnService : VpnService() {
         latestStartId = startId
         when (intent?.action) {
             ACTION_CONNECT -> {
-                val profileId = intent.getStringExtra(EXTRA_PROFILE_ID)
+                val profileIds = intent.getStringArrayListExtra(EXTRA_PROFILE_IDS)
+                    ?: listOfNotNull(intent.getStringExtra(EXTRA_PROFILE_ID))
                 try {
                     startForeground(NOTIFICATION_ID, createNotification(getString(R.string.app_name), "正在启动 VPN"))
                 } catch (error: Throwable) {
-                    failWithoutAttempt(profileId, error.message ?: "无法启动 VPN 前台服务", startId)
+                    profileIds.forEach { failWithoutAttempt(it, error.message ?: "无法启动 VPN 前台服务", startId) }
                     return START_NOT_STICKY
                 }
                 serviceScope.launch {
                     commandMutex.withLock {
-                        startConnection(profileId, forceInteractive = false, startId = startId)
+                        if (profileIds.isEmpty()) failWithoutAttempt(null, "请先选择连接配置", startId)
+                        if (router == null && profileIds.isNotEmpty()) {
+                            try { router = createRouter(profileIds.toSet()) } catch (error: Throwable) {
+                                profileIds.forEach { failWithoutAttempt(it, error.message ?: "无法创建分流器", startId) }
+                                return@withLock
+                            }
+                        }
+                        startingBatch = true
+                        try { profileIds.distinct().forEach { startConnection(it, forceInteractive = false, startId = startId) } }
+                        finally { startingBatch = false }
+                        if (attempts.isEmpty()) stopIfIdle(startId)
                     }
                 }
             }
@@ -84,10 +100,12 @@ class SecureTunnelVpnService : VpnService() {
             )
 
             ACTION_DISCONNECT -> serviceScope.launch {
-                commandMutex.withLock { disconnect(startId, userInitiated = true) }
+                commandMutex.withLock {
+                    disconnect(startId, userInitiated = true, profileId = intent.getStringExtra(EXTRA_PROFILE_ID))
+                }
             }
 
-            else -> stopSelfResult(startId)
+            else -> if (attempts.isEmpty()) stopSelfResult(startId)
         }
         return START_NOT_STICKY
     }
@@ -98,7 +116,16 @@ class SecureTunnelVpnService : VpnService() {
         startId: Int,
         authenticationHint: AuthenticationHint? = null,
     ) {
-        cancelActiveAttemptAndJoin()
+        if (profileId != null && attempts.containsKey(profileId)) return
+        if (profileId != null && router?.profileIds?.contains(profileId) == false) {
+            failWithoutAttempt(profileId, "请先全部断开，再通过「并行连接」选择新的服务器组合", startId)
+            return
+        }
+        val currentRouter = router
+        if (profileId != null && currentRouter?.isReady == true && !currentRouter.hasConfiguredRoutes(profileId)) {
+            failWithoutAttempt(profileId, "此配置首次连接未完成，尚未安装路由；请全部断开后重新连接组合", startId)
+            return
+        }
         val profile = runCatching {
             ProfileRepository(this).load().firstOrNull { it.id == profileId }
         }.getOrElse { error ->
@@ -138,25 +165,35 @@ class SecureTunnelVpnService : VpnService() {
             activeChallengeId = null,
             authenticationRestartScheduled = false,
         )
-        activeAttempt = attempt
+        if (router == null) {
+            router = runCatching {
+                createRouter(setOf(profile.id))
+            }.getOrElse { error ->
+                runCatching { session.cancel() }
+                failWithoutAttempt(profile.id, error.message ?: "无法创建分流器", startId)
+                return
+            }
+        }
+        attempts[profile.id] = attempt
+        val platform = checkNotNull(router).platform(profile.id, profile.name, attempt.id)
 
         updateNotification(profile.name, "正在认证")
         ConnectionLog.add(
             if (savedCredentials == null) {
-                "正在获取认证信息和 SSL Group"
+                "[${profile.name}] 正在获取认证信息和 SSL Group"
             } else {
-                "正在使用保存的凭据和 SSL Group"
+                "[${profile.name}] 正在使用保存的凭据和 SSL Group"
             },
         )
         updateConnecting(attempt, ConnectionStage.STARTING_AUTHENTICATION)
 
-        engineJob = serviceScope.launch {
+        attempt.job = serviceScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     session.run(
                         profile = profile,
                         savedCredentials = savedCredentials,
-                        platform = AndroidVpnPlatform(this@SecureTunnelVpnService),
+                        platform = platform,
                     ) { event ->
                         serviceScope.launch { handleEngineEvent(attempt.id, event) }
                     }
@@ -177,17 +214,17 @@ class SecureTunnelVpnService : VpnService() {
 
     private fun submitAuthentication(sessionId: String?, challengeId: String?, startId: Int) {
         if (sessionId == null || challengeId == null) {
-            if (activeAttempt == null) stopSelfResult(startId)
+            if (attempts.isEmpty()) stopSelfResult(startId)
             return
         }
         val submission = SessionCredentialCache.take(challengeId) ?: return
-        val attempt = activeAttempt
+        val attempt = attempts.values.firstOrNull { it.session.id == sessionId }
         if (
             attempt == null ||
             attempt.session.id != sessionId ||
             attempt.activeChallengeId != challengeId
         ) {
-            if (attempt == null) stopSelfResult(startId)
+            if (attempts.isEmpty()) stopSelfResult(startId)
             return
         }
 
@@ -199,7 +236,7 @@ class SecureTunnelVpnService : VpnService() {
         )
         attempt.saveOnSuccess = submission.saveOnSuccess
         updateConnecting(attempt, ConnectionStage.AUTHENTICATING)
-        ConnectionLog.add("正在验证账号和 SSL Group")
+        ConnectionLog.add("[${attempt.profile.name}] 正在验证账号和 SSL Group")
         runCatching { attempt.session.submitAuthentication(challengeId, submission.credentials) }
             .onFailure { error ->
                 handleEngineEvent(
@@ -213,7 +250,7 @@ class SecureTunnelVpnService : VpnService() {
     }
 
     private fun handleEngineEvent(attemptId: String, event: EngineEvent) {
-        val attempt = activeAttempt?.takeIf { it.id == attemptId } ?: return
+        val attempt = attempts.values.firstOrNull { it.id == attemptId && !it.finishing } ?: return
         when (event) {
             is EngineEvent.AwaitingAuthentication -> {
                 attempt.activeChallengeId?.let(SessionCredentialCache::remove)
@@ -250,18 +287,11 @@ class SecureTunnelVpnService : VpnService() {
 
             EngineEvent.Authenticating -> updateConnecting(attempt, ConnectionStage.AUTHENTICATING)
             EngineEvent.ConfiguringTunnel -> updateConnecting(attempt, ConnectionStage.CONFIGURING_TUNNEL)
-            is EngineEvent.Warning -> ConnectionLog.add(event.message)
+            is EngineEvent.Warning -> ConnectionLog.add("[${attempt.profile.name}] ${event.message}")
             is EngineEvent.TunnelEstablished -> {
-                if (attempt.saveOnSuccess) {
-                    attempt.credentials?.let { value ->
-                        runCatching { credentialStore.save(attempt.profile.id, value) }
-                        .onFailure { ConnectionLog.add("VPN 已连接，但保存密码失败：${it.message ?: "凭据存储异常"}") }
-                    }
-                }
-                TunnelLogFormatter.lines(event.diagnostics).forEach(ConnectionLog::add)
-                ConnectionLog.add("已连接 ${attempt.profile.name}")
-                ConnectionStateStore.update(ConnectionState.Connected(attempt.profile.id, attempt.profile.name))
-                updateNotification(attempt.profile.name, "VPN 已连接")
+                attempt.pendingDiagnostics = event.diagnostics
+                if (router?.isReady == true) completeReadyAttempts()
+                else updateConnecting(attempt, ConnectionStage.CONFIGURING_TUNNEL)
             }
 
             is EngineEvent.Failed -> when {
@@ -270,18 +300,55 @@ class SecureTunnelVpnService : VpnService() {
                     attempt.credentials != null &&
                     !attempt.authenticationRestartScheduled -> restartAfterAuthenticationFailure(attempt)
                 else -> {
-                    ConnectionLog.add("连接失败：${event.message}")
+                    ConnectionLog.add("[${attempt.profile.name}] 连接失败：${event.message}")
                     ConnectionStateStore.update(ConnectionState.Failed(attempt.profile.id, event.message))
                     finishAttempt(attempt, keepFailureState = true)
                 }
             }
 
             EngineEvent.Disconnected -> {
-                val wasConnected = ConnectionStateStore.state.value is ConnectionState.Connected
-                if (wasConnected) ConnectionLog.add("VPN 连接已结束")
+                val wasConnected = ConnectionStateStore.profiles.value[attempt.profile.id] is ConnectionState.Connected
+                if (wasConnected) ConnectionLog.add("[${attempt.profile.name}] VPN 连接已结束")
                 finishAttempt(attempt, keepFailureState = false)
             }
         }
+    }
+
+    private fun createRouter(profileIds: Set<String>): AndroidMultiTunnel {
+        val token = Any()
+        routerToken = token
+        return AndroidMultiTunnel(
+            this, profileIds,
+            onReady = { serviceScope.launch { if (routerToken === token) completeReadyAttempts() } },
+            onFailure = { message ->
+                serviceScope.launch {
+                    commandMutex.withLock {
+                        if (routerToken !== token) return@withLock
+                        ConnectionLog.add("共享 VPN 接口异常：$message")
+                        val ids = attempts.keys.toList()
+                        disconnect(latestStartId, userInitiated = false)
+                        ids.forEach { ConnectionStateStore.update(ConnectionState.Failed(it, message)) }
+                    }
+                }
+            },
+        )
+    }
+
+    private fun completeReadyAttempts() {
+        if (router?.isReady != true) return
+        attempts.values.filterNot { it.finishing }.forEach { attempt ->
+            val diagnostics = attempt.pendingDiagnostics ?: return@forEach
+            attempt.pendingDiagnostics = null
+            if (attempt.saveOnSuccess) attempt.credentials?.let { value ->
+                runCatching { credentialStore.save(attempt.profile.id, value) }
+                    .onFailure { ConnectionLog.add("[${attempt.profile.name}] VPN 已连接，但保存密码失败：${it.message}") }
+            }
+            TunnelLogFormatter.lines(diagnostics).forEach { ConnectionLog.add("[${attempt.profile.name}] $it") }
+            ConnectionLog.add("已连接 ${attempt.profile.name}")
+            ConnectionStateStore.update(ConnectionState.Connected(attempt.profile.id, attempt.profile.name))
+        }
+        rememberActiveProfiles()
+        updateNotification("", "VPN 已连接")
     }
 
     private fun restartAfterAuthenticationFailure(attempt: ActiveAttempt) {
@@ -292,10 +359,10 @@ class SecureTunnelVpnService : VpnService() {
             .onFailure { ConnectionLog.add("无法删除失效凭据：${it.message ?: "凭据存储异常"}") }
         serviceScope.launch {
             commandMutex.withLock {
-                if (activeAttempt?.id != attempt.id) return@withLock
+                if (attempts[attempt.profile.id]?.id != attempt.id) return@withLock
                 val profileId = attempt.profile.id
                 val startId = latestStartId
-                cancelActiveAttemptAndJoin()
+                cancelAttemptAndJoin(profileId)
                 startConnection(
                     profileId = profileId,
                     forceInteractive = true,
@@ -316,43 +383,72 @@ class SecureTunnelVpnService : VpnService() {
         )
     }
 
-    private suspend fun disconnect(startId: Int, userInitiated: Boolean) {
-        val hadAttempt = activeAttempt != null
-        cancelActiveAttemptAndJoin()
-        if (userInitiated || hadAttempt) ConnectionLog.add("已断开连接")
-        ConnectionStateStore.update(ConnectionState.Disconnected)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelfResult(startId)
+    private suspend fun disconnect(startId: Int, userInitiated: Boolean, profileId: String? = null) {
+        val targets = if (profileId == null) attempts.keys.toList() else listOf(profileId)
+        targets.forEach { id ->
+            val name = attempts[id]?.profile?.name
+            cancelAttemptAndJoin(id)
+            router?.unavailable(id)
+            ConnectionStateStore.update(id, ConnectionState.Disconnected)
+            if (name != null) ConnectionLog.add("[$name] 已断开连接")
+        }
+        if (profileId == null) ConnectionStateStore.update(ConnectionState.Disconnected)
+        if (userInitiated && profileId != null && attempts.isNotEmpty()) rememberActiveProfiles()
+        stopIfIdle(startId)
     }
 
-    private suspend fun cancelActiveAttemptAndJoin() {
-        val attempt = activeAttempt
-        val job = engineJob
-        activeAttempt = null
-        engineJob = null
+    private suspend fun cancelAttemptAndJoin(profileId: String) {
+        val attempt = attempts.remove(profileId)
         attempt?.activeChallengeId?.let(SessionCredentialCache::remove)
         runCatching { attempt?.session?.cancel() }
             .onFailure { ConnectionLog.add("取消 OpenConnect 会话失败：${it.message ?: "未知错误"}") }
-        job?.cancelAndJoin()
+        attempt?.job?.cancelAndJoin()
     }
 
     private fun finishAttempt(attempt: ActiveAttempt, keepFailureState: Boolean) {
-        if (activeAttempt?.id != attempt.id) return
-        activeAttempt = null
-        attempt.activeChallengeId?.let(SessionCredentialCache::remove)
-        runCatching { attempt.session.cancel() }
-        engineJob?.cancel()
-        engineJob = null
-        if (!keepFailureState) ConnectionStateStore.update(ConnectionState.Disconnected)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelfResult(latestStartId)
+        if (attempts[attempt.profile.id]?.id != attempt.id || attempt.finishing) return
+        attempt.finishing = true
+        val finishingStartId = latestStartId
+        serviceScope.launch {
+            commandMutex.withLock {
+                if (attempts[attempt.profile.id]?.id != attempt.id) return@withLock
+                cancelAttemptAndJoin(attempt.profile.id)
+                router?.unavailable(attempt.profile.id)
+                if (!keepFailureState) ConnectionStateStore.update(attempt.profile.id, ConnectionState.Disconnected)
+                stopIfIdle(finishingStartId)
+            }
+        }
+    }
+
+    private suspend fun stopIfIdle(startId: Int) {
+        if (attempts.isNotEmpty()) {
+            updateNotification("", "")
+            return
+        }
+        val closing = router
+        router = null
+        routerToken = null
+        withContext(Dispatchers.IO) { closing?.close() }
+        if (startId == latestStartId) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelfResult(startId)
+        }
+    }
+
+    private fun rememberActiveProfiles() {
+        runCatching { ProfileRepository(this).saveQuickConnectProfiles(attempts.keys.toList()) }
+            .onFailure { ConnectionLog.add("无法保存快捷连接组合：${it.message}") }
     }
 
     private fun failWithoutAttempt(profileId: String?, message: String, startId: Int) {
+        profileId?.let { router?.unavailable(it) }
         ConnectionLog.add("连接失败：$message")
-        ConnectionStateStore.update(ConnectionState.Failed(profileId, message))
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelfResult(startId)
+        if (profileId != null) ConnectionStateStore.update(ConnectionState.Failed(profileId, message))
+        else ConnectionLog.add(message)
+        if (attempts.isEmpty() && !startingBatch && startId == latestStartId) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelfResult(startId)
+        } else updateNotification("", "")
     }
 
     private fun createNotification(profileName: String, status: String) = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -371,42 +467,44 @@ class SecureTunnelVpnService : VpnService() {
         .build()
 
     private fun updateNotification(profileName: String, status: String) {
+        val states = ConnectionStateStore.profiles.value.values
+        val connected = states.count { it is ConnectionState.Connected }
+        val pending = states.count { it is ConnectionState.Connecting || it is ConnectionState.AuthenticationRequired }
+        val summary = if (states.size > 1) "已连接 $connected 个 · 等待 $pending 个" else status
         getSystemService(NotificationManager::class.java).notify(
             NOTIFICATION_ID,
-            createNotification(profileName, status),
+            createNotification(if (states.size > 1 || profileName.isBlank()) getString(R.string.app_name) else profileName, summary),
         )
     }
 
     override fun onRevoke() {
         ConnectionLog.add("系统已撤销 VPN 权限")
         revocationInProgress = true
-        val attempt = activeAttempt
-        attempt?.activeChallengeId?.let(SessionCredentialCache::remove)
-        runCatching { attempt?.session?.cancel() }
-            .onFailure { ConnectionLog.add("取消 OpenConnect 会话失败：${it.message ?: "未知错误"}") }
-        engineJob?.cancel()
+        attempts.values.forEach { attempt ->
+            attempt.activeChallengeId?.let(SessionCredentialCache::remove)
+            runCatching { attempt.session.cancel() }
+            attempt.job?.cancel()
+        }
         ConnectionStateStore.update(ConnectionState.Disconnected)
         serviceScope.cancel()
         super.onRevoke()
     }
 
     override fun onDestroy() {
-        val interruptedAttempt = activeAttempt
-        activeAttempt = null
-        interruptedAttempt?.activeChallengeId?.let(SessionCredentialCache::remove)
-        runCatching { interruptedAttempt?.session?.cancel() }
-        engineJob?.cancel()
-        engineJob = null
-        SessionCredentialCache.clear()
-        if (
-            interruptedAttempt != null &&
-            !revocationInProgress &&
-            ConnectionStateStore.state.value !is ConnectionState.Failed
-        ) {
-            ConnectionStateStore.update(
-                ConnectionState.Failed(interruptedAttempt.profile.id, "VPN 服务已停止"),
-            )
+        val interrupted = attempts.values.toList()
+        attempts.clear()
+        interrupted.forEach { attempt ->
+            attempt.activeChallengeId?.let(SessionCredentialCache::remove)
+            runCatching { attempt.session.cancel() }
+            attempt.job?.cancel()
+            if (!revocationInProgress && ConnectionStateStore.profiles.value[attempt.profile.id] !is ConnectionState.Failed) {
+                ConnectionStateStore.update(ConnectionState.Failed(attempt.profile.id, "VPN 服务已停止"))
+            }
         }
+        routerToken = null
+        router?.close()
+        router = null
+        SessionCredentialCache.clear()
         stopForeground(STOP_FOREGROUND_REMOVE)
         serviceScope.cancel()
         super.onDestroy()
@@ -417,6 +515,7 @@ class SecureTunnelVpnService : VpnService() {
         const val ACTION_SUBMIT_AUTHENTICATION = "com.richard.tunnelkeeper.SUBMIT_AUTHENTICATION"
         const val ACTION_DISCONNECT = "com.richard.tunnelkeeper.DISCONNECT"
         const val EXTRA_PROFILE_ID = "profile_id"
+        const val EXTRA_PROFILE_IDS = "profile_ids"
         const val EXTRA_SESSION_ID = "session_id"
         const val EXTRA_CHALLENGE_ID = "challenge_id"
         private const val CHANNEL_ID = "vpn_connection"

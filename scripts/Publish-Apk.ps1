@@ -8,7 +8,12 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateRange(1, 100)]
-    [int]$KeepVersions = 10
+    [int]$KeepVersions = 10,
+
+    [ValidateSet('arm64-v8a', 'x86_64')]
+    [string]$Abi = 'arm64-v8a',
+
+    [switch]$BuildDeviceTests
 )
 
 Set-StrictMode -Version Latest
@@ -26,7 +31,7 @@ function Get-VersionedApkRecords {
             ForEach-Object {
                 $nameMatch = [regex]::Match(
                     $_.Name,
-                    '^GeekOCTunnel-v(?<VersionName>\d+\.\d+\.\d+)-(?<VersionCode>\d+)-debug\.apk$'
+                    '^GeekOCTunnel-v(?<VersionName>\d+\.\d+\.\d+)-(?<VersionCode>\d+)-(?:x86_64-)?debug\.apk$'
                 )
                 if ($nameMatch.Success) {
                     [pscustomobject]@{
@@ -103,7 +108,8 @@ try {
         $semanticVersion.Groups['Minor'].Value,
         ([int]$semanticVersion.Groups['Patch'].Value + 1)
     )
-    $expectedFileName = "GeekOCTunnel-v$nextVersionName-$nextVersionCode-debug.apk"
+    $abiSuffix = if ($Abi -eq 'x86_64') { '-x86_64' } else { '' }
+    $expectedFileName = "GeekOCTunnel-v$nextVersionName-$nextVersionCode$abiSuffix-debug.apk"
 
     $env:JAVA_HOME = $javaHome
     $env:ANDROID_HOME = $AndroidSdk
@@ -115,9 +121,11 @@ try {
         'org.gradle.launcher.GradleMain'
         "-PappVersionCode=$nextVersionCode"
         "-PappVersionName=$nextVersionName"
+        "-PtestAbi=$Abi"
         'testDebugUnitTest'
         'assembleDebug'
     )
+    if ($BuildDeviceTests) { $gradleArguments += 'assembleDebugAndroidTest' }
     & $java @gradleArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Android publish build failed with exit code $LASTEXITCODE"
@@ -170,7 +178,7 @@ try {
         throw "APK versionName check failed: $packageLine"
     }
 
-    & $nativeVerificationScript -ApkPath $builtApk -AndroidSdkRoot $AndroidSdk
+    & $nativeVerificationScript -ApkPath $builtApk -AndroidSdkRoot $AndroidSdk -ExpectedAbis @($Abi)
 
     $archivePath = Join-Path $releaseDirectory $expectedFileName
     if (Test-Path -LiteralPath $archivePath) {

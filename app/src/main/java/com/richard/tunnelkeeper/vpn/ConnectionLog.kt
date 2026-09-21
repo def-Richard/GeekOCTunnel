@@ -15,6 +15,7 @@ object ConnectionLog {
     private val mutableEntries = MutableStateFlow<List<ConnectionLogEntry>>(emptyList())
     val entries = mutableEntries.asStateFlow()
 
+    @Synchronized
     fun add(message: String) {
         val normalizedMessage = buildString(minOf(message.length, MAX_MESSAGE_LENGTH)) {
             message.take(MAX_MESSAGE_LENGTH).forEach { character ->

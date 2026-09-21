@@ -80,9 +80,11 @@ class QuickConnectTileService : TileService() {
             return
         }
 
-        val profile = loadSelectedProfile()
-        val hasSavedCredentials = profile != null && runCatching {
-            SecureCredentialStore(applicationContext).read(profile.id) != null
+        val profiles = runCatching { ProfileRepository(applicationContext).loadQuickConnectProfiles() }.getOrDefault(emptyList())
+        val profile = profiles.firstOrNull()
+        val hasSavedCredentials = profiles.isNotEmpty() && runCatching {
+            val credentials = SecureCredentialStore(applicationContext)
+            profiles.all { credentials.read(it.id) != null }
         }.getOrDefault(false)
         val vpnPermissionGranted = profile != null &&
             hasSavedCredentials &&
@@ -97,7 +99,7 @@ class QuickConnectTileService : TileService() {
             )
         ) {
             QuickTileAction.Disconnect -> requestDisconnect()
-            is QuickTileAction.Connect -> startQuickConnection(checkNotNull(profile), action.profileId)
+            is QuickTileAction.Connect -> startQuickConnection(profiles)
             QuickTileAction.OpenApp -> {
                 val reason = when {
                     profile == null -> "快捷设置：请先在应用内选择连接配置"
@@ -124,28 +126,28 @@ class QuickConnectTileService : TileService() {
         }
     }
 
-    private fun startQuickConnection(profile: ConnectionProfile, profileId: String) {
-        ConnectionStateStore.update(
+    private fun startQuickConnection(profiles: List<ConnectionProfile>) {
+        profiles.forEach { profile -> ConnectionStateStore.update(
             ConnectionState.Connecting(
-                profileId = profileId,
+                profileId = profile.id,
                 profileName = profile.name,
                 stage = ConnectionStage.STARTING_AUTHENTICATION,
             ),
-        )
+        ) }
         runCatching {
             ContextCompat.startForegroundService(
                 this,
                 Intent(this, SecureTunnelVpnService::class.java)
                     .setAction(SecureTunnelVpnService.ACTION_CONNECT)
-                    .putExtra(SecureTunnelVpnService.EXTRA_PROFILE_ID, profileId),
+                    .putStringArrayListExtra(SecureTunnelVpnService.EXTRA_PROFILE_IDS, ArrayList(profiles.map { it.id })),
             )
         }.onSuccess {
-            refreshTile(ConnectionStateStore.state.value, profile.name)
+            refreshTile(ConnectionStateStore.state.value, profiles.firstOrNull()?.name)
         }.onFailure { error ->
             val message = error.message ?: "无法启动 VPN 服务"
             ConnectionLog.add("快捷设置连接失败：$message")
-            ConnectionStateStore.update(ConnectionState.Failed(profileId, message))
-            refreshTile(ConnectionStateStore.state.value, profile.name)
+            profiles.forEach { ConnectionStateStore.update(ConnectionState.Failed(it.id, message)) }
+            refreshTile(ConnectionStateStore.state.value, profiles.firstOrNull()?.name)
             openMainActivity(null)
         }
     }

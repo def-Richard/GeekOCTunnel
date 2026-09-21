@@ -14,6 +14,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -34,6 +37,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -83,7 +87,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.richard.tunnelkeeper.data.ProfileRepository
-import com.richard.tunnelkeeper.data.ProfileSelection
 import com.richard.tunnelkeeper.data.SecureCredentialStore
 import com.richard.tunnelkeeper.model.ConnectionProfile
 import com.richard.tunnelkeeper.model.ProfileValidator
@@ -137,74 +140,87 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
     var editingProfile by remember { mutableStateOf<ConnectionProfile?>(null) }
     var showEditor by remember { mutableStateOf(false) }
     var showProfileMenu by remember { mutableStateOf(false) }
-    var pendingProfileId by rememberSaveable { mutableStateOf<String?>(null) }
-    val connectionState by ConnectionStateStore.state.collectAsStateWithLifecycle()
+    var pendingProfileIds by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
+    var showParallelSelector by remember { mutableStateOf(false) }
+    var parallelIds by remember { mutableStateOf(repository.loadQuickConnectProfiles().map { it.id }.toSet()) }
+    val profileStates by ConnectionStateStore.profiles.collectAsStateWithLifecycle()
+    val connectedProfileNames = profiles.mapNotNull { profile ->
+        (profileStates[profile.id] as? ConnectionState.Connected)?.profileName
+    }.joinToString(" · ")
+    val connectionState = profileStates[selectedProfileId] ?: ConnectionState.Disconnected
+    val activeCount = profileStates.values.count {
+        it is ConnectionState.Connected || it is ConnectionState.Connecting || it is ConnectionState.AuthenticationRequired
+    }
     val logEntries by ConnectionLog.entries.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val selectedProfile = profiles.firstOrNull { it.id == selectedProfileId }
     val controlsLocked = connectionState !is ConnectionState.Disconnected &&
         connectionState !is ConnectionState.Failed
 
-    fun startService(profile: ConnectionProfile) {
+    fun startProfiles(selected: List<ConnectionProfile>) {
         runCatching {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, SecureTunnelVpnService::class.java)
                     .setAction(SecureTunnelVpnService.ACTION_CONNECT)
-                    .putExtra(SecureTunnelVpnService.EXTRA_PROFILE_ID, profile.id),
+                    .putStringArrayListExtra(SecureTunnelVpnService.EXTRA_PROFILE_IDS, ArrayList(selected.map { it.id })),
             )
         }.onFailure { error ->
             val message = error.message ?: "无法启动 VPN 服务"
             ConnectionLog.add("连接失败：$message")
-            ConnectionStateStore.update(ConnectionState.Failed(profile.id, message))
+            selected.forEach { ConnectionStateStore.update(ConnectionState.Failed(it.id, message)) }
         }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val profileId = pendingProfileId
-        pendingProfileId = null
+        val ids = pendingProfileIds.toList()
+        pendingProfileIds = arrayListOf()
         if (result.resultCode == Activity.RESULT_OK) {
-            val profile = ProfileSelection.findById(profiles, profileId)
-                ?: ProfileSelection.findById(repository.load(), profileId)
-            if (profile != null) {
-                startService(profile)
+            val selected = repository.load().filter { it.id in ids }
+            if (selected.isNotEmpty()) {
+                startProfiles(selected)
             } else {
                 ConnectionLog.add("连接配置已不存在，请重新选择")
-                ConnectionStateStore.update(ConnectionState.Disconnected)
+                ids.forEach { ConnectionStateStore.update(it, ConnectionState.Disconnected) }
             }
         } else {
             ConnectionLog.add("VPN 权限未授予")
-            ConnectionStateStore.update(ConnectionState.Disconnected)
+            ids.forEach { ConnectionStateStore.update(it, ConnectionState.Disconnected) }
         }
     }
 
-    fun requestConnection(profile: ConnectionProfile) {
-        ConnectionStateStore.update(
+    fun requestProfiles(selected: List<ConnectionProfile>) {
+        selected.forEach { profile -> ConnectionStateStore.update(
             ConnectionState.Connecting(
                 profileId = profile.id,
                 profileName = profile.name,
                 stage = ConnectionStage.STARTING_AUTHENTICATION,
             ),
-        )
+        ) }
         val permissionIntent = VpnService.prepare(context)
         if (permissionIntent == null) {
-            startService(profile)
+            startProfiles(selected)
         } else {
-            pendingProfileId = profile.id
+            pendingProfileIds = ArrayList(selected.map { it.id })
             permissionLauncher.launch(permissionIntent)
         }
     }
 
-    fun disconnect() {
+    fun requestConnection(profile: ConnectionProfile) = requestProfiles(listOf(profile))
+
+    fun disconnectProfile(profileId: String?) {
         runCatching {
             context.startService(
                 Intent(context, SecureTunnelVpnService::class.java)
-                    .setAction(SecureTunnelVpnService.ACTION_DISCONNECT),
+                    .setAction(SecureTunnelVpnService.ACTION_DISCONNECT)
+                    .putExtra(SecureTunnelVpnService.EXTRA_PROFILE_ID, profileId),
             )
         }.onFailure { error ->
             ConnectionLog.add("断开失败：${error.message ?: "无法访问 VPN 服务"}")
         }
     }
+
+    fun disconnect() = disconnectProfile(selectedProfileId)
 
     fun switchAccount(profile: ConnectionProfile) {
         if (connectionState !is ConnectionState.Disconnected && connectionState !is ConnectionState.Failed) {
@@ -228,7 +244,7 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
             containerColor = GeekBackground,
             topBar = {
                 GeekTopBar(
-                    addEnabled = !controlsLocked,
+                    addEnabled = true,
                     onAddProfile = {
                         editingProfile = null
                         showEditor = true
@@ -253,8 +269,8 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             ConnectionControl(
-                                profile = selectedProfile,
                                 state = connectionState,
+                                connectedProfileNames = connectedProfileNames,
                                 compact = true,
                                 onToggle = { active ->
                                     if (active) disconnect() else selectedProfile?.let(::requestConnection)
@@ -266,6 +282,7 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                                 expanded = showProfileMenu,
                                 onExpandedChange = { showProfileMenu = it },
                                 profiles = profiles,
+                                profileStates = profileStates,
                                 enabled = !controlsLocked,
                                 onSelected = {
                                     repository.select(it.id)
@@ -277,6 +294,8 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                                 },
                                 onSwitchAccount = { selectedProfile?.let(::switchAccount) },
                             )
+                            MultiConnectionStatus(activeCount, profiles.size > 1,
+                                onParallel = { showParallelSelector = true }, onDisconnectAll = { disconnectProfile(null) })
                         }
                         ActivityLog(
                             logEntries = logEntries,
@@ -289,8 +308,8 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         ConnectionControl(
-                            profile = selectedProfile,
                             state = connectionState,
+                            connectedProfileNames = connectedProfileNames,
                             compact = false,
                             onToggle = { active ->
                                 if (active) disconnect() else selectedProfile?.let(::requestConnection)
@@ -302,6 +321,7 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                             expanded = showProfileMenu,
                             onExpandedChange = { showProfileMenu = it },
                             profiles = profiles,
+                            profileStates = profileStates,
                             enabled = !controlsLocked,
                             onSelected = {
                                 repository.select(it.id)
@@ -313,6 +333,8 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                             },
                             onSwitchAccount = { selectedProfile?.let(::switchAccount) },
                         )
+                        MultiConnectionStatus(activeCount, profiles.size > 1,
+                            onParallel = { showParallelSelector = true }, onDisconnectAll = { disconnectProfile(null) })
                         ActivityLog(
                             logEntries = logEntries,
                             modifier = Modifier.weight(1f),
@@ -321,6 +343,46 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
                 }
             }
         }
+    }
+
+    if (showParallelSelector) {
+        AlertDialog(
+            onDismissRequest = { showParallelSelector = false },
+            title = { Text("选择同时连接的服务器") },
+            text = {
+                Column {
+                    Text("先选择组合，再统一连接。支持不同的 IPv4 网段；连接后可分别断开、重连。",
+                        style = MaterialTheme.typography.bodySmall)
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(profiles, key = { it.id }) { profile ->
+                            Row(modifier = Modifier.fillMaxWidth().toggleable(
+                                value = profile.id in parallelIds,
+                                role = Role.Checkbox,
+                                onValueChange = { checked ->
+                                    parallelIds = if (checked) parallelIds + profile.id else parallelIds - profile.id
+                                },
+                            ).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = profile.id in parallelIds, onCheckedChange = null)
+                                Column {
+                                    Text(profile.name)
+                                    Text(profile.server, style = MaterialTheme.typography.bodySmall, color = GeekTextMuted)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = profiles.any { it.id in parallelIds }, onClick = {
+                    val selected = profiles.filter { it.id in parallelIds }
+                    showParallelSelector = false
+                    selectedProfileId = selected.first().id
+                    repository.select(selected.first().id)
+                    requestProfiles(selected)
+                }) { Text("连接所选") }
+            },
+            dismissButton = { TextButton(onClick = { showParallelSelector = false }) { Text("取消") } },
+        )
     }
 
     if (showEditor) {
@@ -340,7 +402,7 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
         )
     }
 
-    (connectionState as? ConnectionState.AuthenticationRequired)?.let { authentication ->
+    profileStates.values.filterIsInstance<ConnectionState.AuthenticationRequired>().firstOrNull()?.let { authentication ->
         CredentialDialog(
             profileName = authentication.profileName,
             sessionId = authentication.sessionId,
@@ -348,7 +410,7 @@ private fun GeekOCTunnelApp(repository: ProfileRepository, credentials: SecureCr
             message = authentication.reason,
             groups = authentication.sslGroups,
             initialUsername = authentication.suggestedUsername,
-            onDismiss = ::disconnect,
+            onDismiss = { disconnectProfile(authentication.profileId) },
             onAuthenticate = { username, password, group, rememberPassword ->
                 val normalizedUsername = username.trim()
                 if (normalizedUsername.isEmpty() || password.isEmpty()) return@CredentialDialog false
@@ -418,7 +480,6 @@ private fun GeekTopBar(addEnabled: Boolean, onAddProfile: () -> Unit) {
 
 private data class ConnectionPresentation(
     val title: String,
-    val detail: String,
     val accent: Color,
     val active: Boolean,
     val busy: Boolean,
@@ -426,15 +487,14 @@ private data class ConnectionPresentation(
 
 @Composable
 private fun ConnectionControl(
-    profile: ConnectionProfile?,
     state: ConnectionState,
+    connectedProfileNames: String,
     compact: Boolean,
     onToggle: (active: Boolean) -> Unit,
 ) {
     val presentation = when (state) {
         ConnectionState.Disconnected -> ConnectionPresentation(
             title = "未连接",
-            detail = profile?.name ?: "未选择配置",
             accent = GeekPurple,
             active = false,
             busy = false,
@@ -446,7 +506,6 @@ private fun ConnectionControl(
                 ConnectionStage.AUTHENTICATING -> "正在认证"
                 ConnectionStage.CONFIGURING_TUNNEL -> "正在建立隧道"
             },
-            detail = state.profileName,
             accent = GeekWarning,
             active = true,
             busy = true,
@@ -454,7 +513,6 @@ private fun ConnectionControl(
 
         is ConnectionState.AuthenticationRequired -> ConnectionPresentation(
             title = "等待认证",
-            detail = state.profileName,
             accent = GeekWarning,
             active = true,
             busy = false,
@@ -462,7 +520,6 @@ private fun ConnectionControl(
 
         is ConnectionState.Connected -> ConnectionPresentation(
             title = "隧道已建立",
-            detail = state.profileName,
             accent = GeekGreen,
             active = true,
             busy = false,
@@ -470,7 +527,6 @@ private fun ConnectionControl(
 
         is ConnectionState.Failed -> ConnectionPresentation(
             title = "连接失败",
-            detail = state.reason,
             accent = GeekError,
             active = false,
             busy = false,
@@ -549,12 +605,12 @@ private fun ConnectionControl(
             )
         }
         Text(
-            text = presentation.detail,
+            text = connectedProfileNames,
             color = GeekTextMuted,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = if (compact) 240.dp else 320.dp),
+            modifier = Modifier.widthIn(max = if (compact) 240.dp else 320.dp)
+                .horizontalScroll(rememberScrollState()),
         )
     }
 }
@@ -565,12 +621,13 @@ private fun ProfileSelector(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     profiles: List<ConnectionProfile>,
+    profileStates: Map<String, ConnectionState>,
     enabled: Boolean,
     onSelected: (ConnectionProfile) -> Unit,
     onEdit: () -> Unit,
     onSwitchAccount: () -> Unit,
 ) {
-    val canOpen = enabled && profiles.isNotEmpty()
+    val canOpen = profiles.isNotEmpty()
     Box(modifier = Modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier
@@ -625,7 +682,14 @@ private fun ProfileSelector(
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val status = when (profileStates[item.id]) {
+                                is ConnectionState.Connected -> " · 已连接"
+                                is ConnectionState.Connecting -> " · 连接中"
+                                is ConnectionState.AuthenticationRequired -> " · 等待认证"
+                                is ConnectionState.Failed -> " · 失败"
+                                else -> ""
+                            }
+                            Text(item.name + status, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
                                 item.server,
                                 color = GeekTextMuted,
@@ -635,7 +699,7 @@ private fun ProfileSelector(
                             )
                         }
                     },
-                    enabled = enabled,
+                    enabled = true,
                     onClick = {
                         onSelected(item)
                         onExpandedChange(false)
@@ -676,6 +740,20 @@ private fun ProfileSelector(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MultiConnectionStatus(activeCount: Int, canParallel: Boolean, onParallel: () -> Unit, onDisconnectAll: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = if (activeCount == 0) "选择多个服务器，按目标 IPv4 网段分流" else "$activeCount 个连接运行中 · 选择配置可分别查看或断开",
+            color = GeekTextMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
+        )
+        if (activeCount > 0) TextButton(onClick = onDisconnectAll) { Text("全部断开") }
+        else if (canParallel) TextButton(onClick = onParallel) { Text("并行连接") }
     }
 }
 
