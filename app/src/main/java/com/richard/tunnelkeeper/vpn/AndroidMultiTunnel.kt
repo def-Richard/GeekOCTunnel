@@ -293,7 +293,8 @@ internal class AndroidMultiTunnel(
         internal fun datagramPair(): Pair<ParcelFileDescriptor, ParcelFileDescriptor> {
             val left = FileDescriptor()
             val right = FileDescriptor()
-            Os.socketpair(OsConstants.AF_UNIX, OsConstants.SOCK_DGRAM or OsConstants.SOCK_NONBLOCK, 0, left, right)
+            // Android documents O_NONBLOCK as the identical, API-21-compatible SOCK_NONBLOCK flag.
+            Os.socketpair(OsConstants.AF_UNIX, OsConstants.SOCK_DGRAM or OsConstants.O_NONBLOCK, 0, left, right)
             try {
                 val first = ParcelFileDescriptor.dup(left)
                 return try { first to ParcelFileDescriptor.dup(right) } catch (error: Throwable) {

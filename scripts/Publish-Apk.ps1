@@ -13,7 +13,10 @@ param(
     [ValidateSet('arm64-v8a', 'x86_64')]
     [string]$Abi = 'arm64-v8a',
 
-    [switch]$BuildDeviceTests
+    [switch]$BuildDeviceTests,
+
+    # An independently retained, trusted APK from the existing distribution.
+    [string]$PreviousApk
 )
 
 Set-StrictMode -Version Latest
@@ -54,12 +57,37 @@ $javaHome = Join-Path $ToolchainRoot 'jdk-17'
 $java = Join-Path $javaHome 'bin\java.exe'
 $gradleLauncher = Join-Path $ToolchainRoot 'gradle-8.9\lib\gradle-launcher-8.9.jar'
 $nativeVerificationScript = Join-Path $PSScriptRoot 'Verify-ApkNativeLibraries.ps1'
+$upgradeGuardModule = Join-Path $PSScriptRoot 'ApkUpgradeGuard.psm1'
 
-foreach ($requiredPath in @($versionFile, $java, $gradleLauncher, $AndroidSdk, $nativeVerificationScript)) {
+if (-not $PreviousApk -or -not (Test-Path -LiteralPath $PreviousApk -PathType Leaf)) {
+    throw 'PreviousApk must point to a trusted, previously distributed APK. Publishing without an upgrade-signature baseline is refused.'
+}
+$PreviousApk = (Resolve-Path -LiteralPath $PreviousApk).Path
+$buildDirectoryPrefix = (Join-Path $repositoryRoot 'app\build') + [System.IO.Path]::DirectorySeparatorChar
+if ($PreviousApk.StartsWith($buildDirectoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'PreviousApk must be retained outside app/build so the build cannot overwrite the trusted baseline.'
+}
+
+foreach ($requiredPath in @($versionFile, $java, $gradleLauncher, $AndroidSdk, $nativeVerificationScript, $upgradeGuardModule)) {
     if (-not (Test-Path -LiteralPath $requiredPath)) {
         throw "Missing publish requirement: $requiredPath"
     }
 }
+
+$buildToolsDirectory = Get-ChildItem -LiteralPath (Join-Path $AndroidSdk 'build-tools') -Directory |
+    Sort-Object { [version]$_.Name } -Descending |
+    Select-Object -First 1
+if ($null -eq $buildToolsDirectory) {
+    throw "No Android build-tools installation was found under $AndroidSdk."
+}
+$aapt2 = Join-Path $buildToolsDirectory.FullName 'aapt2.exe'
+$apkSignerJar = Join-Path $buildToolsDirectory.FullName 'lib\apksigner.jar'
+foreach ($requiredPath in @($aapt2, $apkSignerJar)) {
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+        throw "Missing APK verification tool: $requiredPath"
+    }
+}
+Import-Module $upgradeGuardModule -Force
 
 New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
 
@@ -119,6 +147,8 @@ try {
         '-classpath'
         $gradleLauncher
         'org.gradle.launcher.GradleMain'
+        '-p'
+        $repositoryRoot
         "-PappVersionCode=$nextVersionCode"
         "-PappVersionName=$nextVersionName"
         "-PtestAbi=$Abi"
@@ -153,16 +183,6 @@ try {
         throw "Built APK does not exist: $builtApk"
     }
 
-    $buildToolsDirectory = Get-ChildItem -LiteralPath (Join-Path $AndroidSdk 'build-tools') -Directory |
-        Sort-Object { [version]$_.Name } -Descending |
-        Select-Object -First 1
-    if ($null -eq $buildToolsDirectory) {
-        throw "No Android build-tools installation was found under $AndroidSdk."
-    }
-    $aapt2 = Join-Path $buildToolsDirectory.FullName 'aapt2.exe'
-    if (-not (Test-Path -LiteralPath $aapt2 -PathType Leaf)) {
-        throw "aapt2.exe was not found: $aapt2"
-    }
     $badging = & $aapt2 'dump' 'badging' $builtApk
     if ($LASTEXITCODE -ne 0) {
         throw "APK metadata inspection failed with exit code $LASTEXITCODE"
@@ -179,6 +199,9 @@ try {
     }
 
     & $nativeVerificationScript -ApkPath $builtApk -AndroidSdkRoot $AndroidSdk -ExpectedAbis @($Abi)
+
+    $upgrade = Assert-ApkUpgrade -ApkPath $builtApk -PreviousApk $PreviousApk `
+        -JavaPath $java -ApkSignerJar $apkSignerJar -Aapt2Path $aapt2
 
     $archivePath = Join-Path $releaseDirectory $expectedFileName
     if (Test-Path -LiteralPath $archivePath) {
@@ -224,6 +247,7 @@ try {
         ApkPath = $archivePath
         SizeBytes = (Get-Item -LiteralPath $archivePath).Length
         SHA256 = $archiveHash
+        SigningCertificateSha256 = $upgrade.SigningCertificateSha256
         RetainedVersions = $retainedVersions
     }
 }

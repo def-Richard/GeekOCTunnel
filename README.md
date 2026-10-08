@@ -79,10 +79,17 @@ Android 同一时间通常只允许一个 VPN 服务运行，连接本应用可�
 
 ```powershell
 # 先将 ANDROID_TOOLCHAIN_ROOT 环境变量设为你的工具目录。
-& .\scripts\Publish-Apk.ps1 -ToolchainRoot $env:ANDROID_TOOLCHAIN_ROOT
+# 基准必须是已实际分发、可信且单独保留的旧 APK，不要用重新构建的 APK 代替。
+& .\scripts\Publish-Apk.ps1 -ToolchainRoot $env:ANDROID_TOOLCHAIN_ROOT -PreviousApk 'D:\apk-baseline\previous-debug.apk'
 ```
 
 每个交付 APK 均通过此脚本生成：运行单元测试、构建、核对包名和版本、校验原生库及 16 KB 对齐、计算 SHA-256，归档成功后才更新 `version.properties`。每次成功会递增 patch 版本和 versionCode，产物保存在 `releases/apk/`，默认保留最近 10 个版本。该目录不提交到 Git，安装包通过 GitHub Release 分发。
+
+发布前还会使用 Android Build Tools 的 `apksigner` 验证新旧 APK，要求两者包名为 `com.richard.tunnelkeeper`、各有且仅有一个相同的 SHA-256 签名证书，并且新包的 versionCode 更大。缺少基准、工具、有效签名或证书不一致时，脚本会停止，不归档新 APK、不更新版本、不清理旧归档。基准不要放在 `app/build/`（构建会覆盖）或 `releases/apk/`（旧归档会轮换清理），应单独保留。
+
+这项检查继续使用现有 debug 签名，不生成或更换密钥，也不支持签名轮换。新电脑自动生成的 debug 密钥可能与旧包不同；遇到不一致时应找回原构建环境的签名密钥，不要通过卸载旧应用解决，否则会丢失配置和保存的凭据。没有可信旧 APK 时应先找回实际分发的安装包，不能把新构建的包当作基准绕过检查。
+
+可运行 `pwsh -NoProfile -File .\scripts\Test-ApkUpgradeGuard.ps1` 检查发布门禁逻辑（无需 Android SDK，使用模拟工具输出）。它不替代真实 APK 签名校验或实机覆盖升级测试。相同证书、包名及递增版本也不保证数据迁移、VPN 或快速设置行为正确；分发前仍需在保留数据的旧版安装上实测。ARM64 与 x86_64 可使用同一个可信基准检查签名连续性，但不能据此认定跨架构安装兼容。
 
 ### 重建原生库
 

@@ -207,7 +207,8 @@ class QuickConnectTileService : TileService() {
             )
             startActivityAndCollapse(pendingIntent)
         } else {
-            @Suppress("DEPRECATION")
+            // Lint 31.7.3 flags the Intent overload even in this pre-34-only branch.
+            @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
             startActivityAndCollapse(intent)
         }
     }
