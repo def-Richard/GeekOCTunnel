@@ -1,0 +1,10 @@
+<!-- Adapted from app/src/main/res/drawable/ic_launcher_foreground.xml. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+  <rect width="108" height="108" rx="24" fill="#121729"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M78,28A36,36 0,1 0,82,77" stroke="#7C5CFF" stroke-width="10"/>
+    <path d="M82,77A36,36 0,0 0,90 48" stroke="#32D6A6" stroke-width="7"/>
+    <path d="M42,41L55,54L42,67" stroke="#fff" stroke-width="7"/>
+    <path d="M61,67L73,67" stroke="#D9F46A" stroke-width="7"/>
+  </g>
+</svg>

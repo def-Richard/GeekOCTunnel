@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-vpn-start"
+description = "Enables the vpn_start command without any pre-configured scope."
+commands.allow = ["vpn_start"]
+
+[[permission]]
+identifier = "deny-vpn-start"
+description = "Denies the vpn_start command without any pre-configured scope."
+commands.deny = ["vpn_start"]

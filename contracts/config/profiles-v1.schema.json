@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GeekOCTunnel desktop profile draft v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profiles"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profiles": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "server"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "server": { "type": "string", "minLength": 1, "maxLength": 2048 },
+          "ignoreCertificateErrors": { "const": false },
+          "enableUdp": { "type": "boolean", "default": false }
+        }
+      }
+    }
+  }
+}

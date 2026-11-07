@@ -1,0 +1,143 @@
+{
+  "release": "desktop-v0.1.0-preview.1",
+  "openconnectCommit": "f17fe20d337b400b476a73326de642a9f63b59c8",
+  "windowsBuildImage": "registry.gitlab.com/openconnect/build-images@sha256:4b6ea3e2114e2afded0dfb6ed3f877e2b0fe509675d1e3a4d753acf1a8927180",
+  "fedoraBinaries": [
+    {
+      "binary": "iconv.dll",
+      "binarySha256": "3ffa5bc870ddf20abb6fbf6e933f93f42ef30ebc075b1264cd3e01609c831b43",
+      "source": "mingw-win-iconv-0.0.8-14.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-win-iconv/0.0.8/14.fc42/src/mingw-win-iconv-0.0.8-14.fc42.src.rpm",
+      "package": "mingw-win-iconv-0.0.8-14.fc42"
+    },
+    {
+      "binary": "libgmp-10.dll",
+      "binarySha256": "024193fcb2c773cacbfc93cbfefbdc6b0754643c2af452e5d4c885c1659a148f",
+      "source": "mingw-gmp-6.3.0-2.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-gmp/6.3.0/2.fc42/src/mingw-gmp-6.3.0-2.fc42.src.rpm",
+      "package": "mingw-gmp-6.3.0-2.fc42"
+    },
+    {
+      "binary": "libwinpthread-1.dll",
+      "binarySha256": "3e27a182fa8217353f4eec3d9170dfda46361a1c717a449274993934b87ae66c",
+      "source": "mingw-winpthreads-12.0.0-4.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-winpthreads/12.0.0/4.fc42/src/mingw-winpthreads-12.0.0-4.fc42.src.rpm",
+      "package": "mingw-winpthreads-12.0.0-4.fc42"
+    },
+    {
+      "binary": "libnettle-8.dll",
+      "binarySha256": "f3c613c0c6d464b6889a32ad9b8dbc1c52050a356b84ee6a8ae47f794c72aa68",
+      "source": "mingw-nettle-3.7.2-12.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-nettle/3.7.2/12.fc42/src/mingw-nettle-3.7.2-12.fc42.src.rpm",
+      "package": "mingw-nettle-3.7.2-12.fc42"
+    },
+    {
+      "binary": "libtasn1-6.dll",
+      "binarySha256": "1c00d590c8e43fcf7ea858ab404416072c46e3d4bf44fedc9154c84da4038556",
+      "source": "mingw-libtasn1-4.21.0-1.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-libtasn1/4.21.0/1.fc42/src/mingw-libtasn1-4.21.0-1.fc42.src.rpm",
+      "package": "mingw-libtasn1-4.21.0-1.fc42"
+    },
+    {
+      "binary": "libxml2-2.dll",
+      "binarySha256": "32f5d36ba7e44c51f6493a68d3638396568c47e26a308465e867bb41d0a6d848",
+      "source": "mingw-libxml2-2.12.9-2.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-libxml2/2.12.9/2.fc42/src/mingw-libxml2-2.12.9-2.fc42.src.rpm",
+      "package": "mingw-libxml2-2.12.9-2.fc42"
+    },
+    {
+      "binary": "zlib1.dll",
+      "binarySha256": "699d6ac86e72f78070cf4323c13b152a59979512d1ad2acda8494c733e6b5963",
+      "source": "mingw-zlib-1.3.2-1.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-zlib/1.3.2/1.fc42/src/mingw-zlib-1.3.2-1.fc42.src.rpm",
+      "package": "mingw-zlib-1.3.2-1.fc42"
+    },
+    {
+      "binary": "libgnutls-30.dll",
+      "binarySha256": "3499422bda726d2d145c7b6bde2445f61291376f0a3b33b4a8936805f220b002",
+      "source": "gnutls-3.8.11-3.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/gnutls/3.8.11/3.fc42/src/gnutls-3.8.11-3.fc42.src.rpm",
+      "package": "gnutls-3.8.11-3.fc42"
+    },
+    {
+      "binary": "libgcc_s_seh-1.dll",
+      "binarySha256": "bf204c248ccea9a2ad76d55fc6277b9145fa67cfa0a85e480b8762a3ccf8462e",
+      "source": "mingw-gcc-14.2.1-4.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-gcc/14.2.1/4.fc42/src/mingw-gcc-14.2.1-4.fc42.src.rpm",
+      "package": "mingw-gcc-14.2.1-4.fc42"
+    },
+    {
+      "binary": "libhogweed-6.dll",
+      "binarySha256": "4a169d2c8c77074a510e1d30d67e232128fa35ca023537db9d48643cd47198ac",
+      "source": "mingw-nettle-3.7.2-12.fc42.src.rpm",
+      "sourceUrl": "https://kojipkgs.fedoraproject.org/packages/mingw-nettle/3.7.2/12.fc42/src/mingw-nettle-3.7.2-12.fc42.src.rpm",
+      "package": "mingw-nettle-3.7.2-12.fc42"
+    }
+  ],
+  "sources": [
+    {
+      "file": "Build-OpenConnect.sh",
+      "sha256": "386935cb7d3362694ba1dab9acd7e361b5223ee52cc89bebd516e3ad0cba56b9"
+    },
+    {
+      "file": "gnutls-3.8.11-3.fc42.src.rpm",
+      "sha256": "e7085df1589bd8e5990306d0edfc367d0038d88f1a127fb5d344956d97e43392"
+    },
+    {
+      "file": "lz4-1.9.4.tar.gz",
+      "sha256": "0b0e3aa07c8c063ddf40b082bdf7e37a1562bda40a0ff5272957f3e987e0e54b"
+    },
+    {
+      "file": "mingw-gcc-14.2.1-4.fc42.src.rpm",
+      "sha256": "61bbecaca29416f8b5f1dbba611f38b1e9cb41bb93e1dac7efaafe8571bb5ba3"
+    },
+    {
+      "file": "mingw-gmp-6.3.0-2.fc42.src.rpm",
+      "sha256": "352de820ba25d2fb5cb14c5fb00893b1ba48439c995bbe8dac70df2d8c25167f"
+    },
+    {
+      "file": "mingw-libtasn1-4.21.0-1.fc42.src.rpm",
+      "sha256": "68e1a8d7722fedd3d5c2d7f3fb0a7dbc5ef62860021c3721a62320f37b9450fe"
+    },
+    {
+      "file": "mingw-libxml2-2.12.9-2.fc42.src.rpm",
+      "sha256": "f582d608abd6e00a5c04dc47eed610f32d8d601f957b1103bc680b4c297b5861"
+    },
+    {
+      "file": "mingw-nettle-3.7.2-12.fc42.src.rpm",
+      "sha256": "977a9324b2ae65b9ad79b111a5524447060303125d5178583c5eee40db907e2a"
+    },
+    {
+      "file": "mingw-win-iconv-0.0.8-14.fc42.src.rpm",
+      "sha256": "bb6b7b6276e0385d9485c2edeb36d46b11a950841f69c8fa1dd1c6e33f111372"
+    },
+    {
+      "file": "mingw-winpthreads-12.0.0-4.fc42.src.rpm",
+      "sha256": "772169f552352319aeb6648b63c01aa3ec723f4b28e87451bfdc66caab437bb0"
+    },
+    {
+      "file": "mingw-zlib-1.3.2-1.fc42.src.rpm",
+      "sha256": "da7a74aa88ff2c2652cde4cf610651dd0e996ebacb60e01f35f3a24977c2f89b"
+    },
+    {
+      "file": "openconnect-9.12.tar",
+      "sha256": "ba2d89b49cc0b68468475d1a9032639b5fc4c2507159d848dfd0a41838deb8d8"
+    },
+    {
+      "file": "openconnect-nonblocking-tls.patch",
+      "sha256": "e4581f1efa675b58d6d919beb65c4ab5164523066d3df49ac9a26fdb7a50915b"
+    },
+    {
+      "file": "openconnect-windows-message-pipe.patch",
+      "sha256": "91885ee0275ef71594a36bfa33123a8ab5a0cf05948a40bcdddac0b1f3796a13"
+    },
+    {
+      "file": "qtbase-everywhere-src-6.8.3.tar.xz",
+      "sha256": "56001b905601bb9023d399f3ba780d7fa940f3e4861e496a7c490331f49e0b80"
+    },
+    {
+      "file": "wintun-0.14.1.zip",
+      "sha256": "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51"
+    }
+  ]
+}

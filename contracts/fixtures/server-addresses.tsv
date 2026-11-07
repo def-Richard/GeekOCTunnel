@@ -1,0 +1,26 @@
+# input<TAB>normalized; ! means reject. Reserved documentation addresses only.
+VPN.Example.COM	vpn.example.com
+https://vpn.example.com:443/	vpn.example.com
+https://vpn.example.com:8443/	vpn.example.com:8443
+https://vpn.example.com./	vpn.example.com
+192.0.2.1	192.0.2.1
+[2001:db8::1]	[2001:db8::1]
+https://[2001:DB8::1]:4443/	[2001:db8::1]:4443
+http://vpn.example.com	!
+https://user@vpn.example.com	!
+https://@vpn.example.com	!
+https://vpn.example.com/client	!
+https://vpn.example.com?group=staff	!
+https://vpn.example.com#staff	!
+https://vpn.example.com:	!
+vpn.example.com:0	!
+vpn.example.com:65536	!
+999.1.1.1	!
+01.2.3.4	!
+127.1	!
+2001:db8::1	!
+https://[fe80::1%25eth0]	!
+https://bad_host.example.com	!
+https://vpn.example.com//	!
+https://vpn.example.com/?	!
+https://vpn.example.com/#	!

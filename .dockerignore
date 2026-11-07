@@ -1,0 +1,11 @@
+# Only desktop source/contracts belong in the desktop build context.
+**
+!desktop/
+!desktop/**
+!contracts/
+!contracts/**
+desktop/**/node_modules
+desktop/**/target
+desktop/frontend/dist
+desktop/frontend/src-tauri/gen
+desktop/frontend/src-tauri/resources/native

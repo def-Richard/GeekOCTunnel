@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-release-ready"
+description = "Enables the desktop_release_ready command without any pre-configured scope."
+commands.allow = ["desktop_release_ready"]
+
+[[permission]]
+identifier = "deny-desktop-release-ready"
+description = "Denies the desktop_release_ready command without any pre-configured scope."
+commands.deny = ["desktop_release_ready"]

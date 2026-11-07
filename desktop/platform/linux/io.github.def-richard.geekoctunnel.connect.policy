@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>GeekOCTunnel</vendor>
+  <action id="io.github.def-richard.geekoctunnel.connect">
+    <description>Configure a GeekOCTunnel VPN connection</description>
+    <description xml:lang="zh_CN">配置 GeekOCTunnel VPN 连接</description>
+    <message>Authentication is required to create this VPN interface and apply its routes and DNS.</message>
+    <message xml:lang="zh_CN">需要授权以创建本次 VPN 网卡，并设置它的路由和 DNS。</message>
+    <icon_name>network-vpn</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/geekoctunnel/native/geekoctunnel-helper</annotate>
+  </action>
+</policyconfig>

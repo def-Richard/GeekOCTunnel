@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Only the local main window may use the bounded configuration bridge.",
+  "windows": ["main"],
+  "permissions": ["allow-desktop-request", "allow-vpn-start", "allow-vpn-send", "allow-vpn-snapshot", "allow-vpn-clear-log", "allow-desktop-preferences", "allow-desktop-close-action", "allow-desktop-set-close-behavior", "allow-desktop-save-preferences", "allow-desktop-release-ready", "core:event:allow-listen", "core:event:allow-unlisten"]
+}

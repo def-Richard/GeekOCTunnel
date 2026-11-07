@@ -1,15 +1,23 @@
 # GeekOCTunnel 下一代跨平台实施计划
 
-状态：待按阶段实施；本次仅提交计划，不迁移代码。  
-目标分支：`next`；审阅基线：`main@74e8bc22091fbe17b550fd7ac02667ab5617379d`。  
+状态：P0/P1 开发中。2026-11-06 已完成 Windows、Ubuntu 24.04、Debian 12 隔离网关的单个 IPv4 分流隧道验证；完整桌面、升级卸载和更广泛网关验收仍按下列阶段推进。
+实施代码已并入 `main`，原 `next` 分支不再保留；最初审阅基线：`main@74e8bc22091fbe17b550fd7ac02667ab5617379d`。
 约定：下文“现状”来自该基线；“目标”与目录均是实施提案，不表示功能已经完成。
+
+2026-10-26 选型更新：用户选择 **Tauri + Web 界面**，接受界面重构。
+后续 GUI 使用 Tauri 2，C++ 保留配置/协议核心；原 Widgets 窗口仅作可选 P0 参考。
+Windows 使用系统 WebView2，Linux 使用 WebKitGTK，macOS 最后推进。
+此决定替代原有的 Qt Widgets GUI 约束；下文已按新选型更新，仍不捆绑完整 Chromium/Electron。
+内存、安装占用和进程树预算必须重新测量，不能引用原 Widgets 的数据作为 Tauri 数据。
+非特权 GUI/Core、最小权限 Helper、网络回滚与平台独立验收要求继续有效。
+当前实现与验证范围见 [桌面说明](../desktop/README.md) 和 [验证记录](DESKTOP_P0_RESULTS.md)。
 
 ## 1. 已确定的方向
 
 - Android 保留 Kotlin + Jetpack Compose、现有 `VpnService` 生命周期和发布渠道。
-- Windows、Linux、macOS 共用一套精简 C++ + Qt Widgets 桌面界面及业务代码。
+- Windows、Linux、macOS 共用 Tauri + Web 桌面界面，复用 C++ 配置与协议核心。
 - VPN 协议继续使用 OpenConnect；统一的是配置、状态、认证、错误语义与测试契约。
-- 优先降低发行包体积、安装占用、启动成本和常驻内存；桌面包不捆绑浏览器、WebEngine、Electron 或 JVM；Android 沿用系统运行时。
+- 优先降低发行包体积、安装占用、启动成本和常驻内存；桌面使用系统 WebView，不捆绑完整浏览器、Qt WebEngine、Electron 或 JVM；Android 沿用系统运行时。
 - 不为追求源码统一而重写 Android UI，也不要求 Android 改用桌面 C++ 业务层。
 - 先完成桌面单隧道，再实现与现有 Android 约束一致的多隧道；不可把单隧道可用称为完整迁移完成。
 - 浏览器型认证如确实需要，调用系统浏览器；其回调安全和服务端兼容性必须单独验证。
@@ -40,7 +48,7 @@
 
 ## 4. 桌面架构与安全边界
 
-建议分为三个职责层：Qt Widgets GUI、非特权 Core 工作进程、最小权限 Network Helper。
+建议分为三个职责层：Tauri GUI、非特权 C++ Core 工作进程、最小权限 Network Helper。
 
 - GUI：配置编辑、认证提示、状态展示、托盘；不持有管理员权限，不直接修改系统路由。
 - Core：连接编排、OpenConnect 会话、重连、认证协调、路由计划、数据包转发与统计；不依赖 Qt Widgets/Gui，不初始化图形引擎。
@@ -152,7 +160,8 @@ app/                              # 原 Android Kotlin + Compose 工程
 native/                           # 保留现有 Android 原生依赖及锁定信息
 desktop/
   CMakeLists.txt
-  ui/                             # Qt Widgets、托盘、认证视图
+  frontend/                       # Tauri、Web UI、托盘及认证视图
+  ui/                             # 可选的旧 Widgets P0 参考窗口
   core/                           # 会话编排、配置适配、OpenConnect 封装
   routing/                        # C++ IPv4 算法与路由计划
   ipc/                            # 类型、编解码、权限及连接管理
@@ -176,13 +185,13 @@ doc/NEXT_CROSS_PLATFORM_PLAN.md
 - Kotlin 与 C++ 对相同输入产生相同输出或相同拒绝码；禁止各维护一套互不校对的“预期值”。
 - 离线包测试之外，使用授权测试 VPN 做端到端验证：重连、取消、凭据错误、证书错误、路由/DNS 泄漏和恢复。
 - 用故障注入覆盖进程被杀、Helper 失联、权限拒绝、半完成网络配置、休眠与物理网络切换。
-- 建立每平台/架构的最小 Qt Widgets + OpenConnect 原型；阶段 0 实测后在预算文件中填写目标，禁止编造 MB 数字。
+- 建立每平台/架构的最小 Tauri + C++/OpenConnect 原型；实测后在预算文件中填写目标，禁止编造 MB 数字。
 - 测量压缩安装包、安装后大小、冷/热启动、空闲、单隧道、多隧道稳定运行及连接峰值。分别测 UI 打开、仅隐藏到托盘、UI 真正退出后 Core/Helper 保持连接，禁止把隐藏窗口等同释放 UI 内存。
 - 内存统计必须包含 GUI、Core、Helper 全进程树；另记驱动/系统服务影响与统计口径。
 - Linux 记录 RSS/PSS，Windows 记录私有工作集/提交量，macOS 记录适用的 footprint；不同口径不可直接排名。
 - 固定 OS、CPU 架构、Release 构建、依赖版本、测试流量和采样时段，报告多次测量的中位值与峰值。
 - 在阶段 0 批准绝对预算与相对回归阈值，后续 CI 超标须解释或阻止发布；不能靠隐藏 Helper 内存达标。
-- 最小依赖原则：Qt Core/Gui/Widgets 为基础，其他模块逐项证明必要；不包含 WebEngine/QML/开发工具和无用插件。
+- 最小依赖原则：C++ 以 Qt Core/Network 为基础，界面使用 Tauri 与系统 WebView；其他模块逐项证明必要，不包含 Qt Widgets/WebEngine/QML、开发工具和无用插件。旧 Widgets 仅用于可选参考构建。
 
 ## 10. 构建、发行与许可证
 
@@ -203,7 +212,7 @@ doc/NEXT_CROSS_PLATFORM_PLAN.md
 
 1. **P0：固化基线与可行性。** 清点 Android 行为/认证/测试；建立契约草案和共享夹具；完成三平台设备、库 I/O、权限及 DNS 最小原型；填入资源预算和支持矩阵。
    - 验收：Windows 句柄/驱动、macOS 分发/权限、Linux DNS 路径都有实验结果；未解决项有明确阻塞及下一步，不能仅写“支持”。
-2. **P1：契约与桌面骨架。** 引入 CMake、最小 Widgets UI、版本化配置、状态/错误模型、模拟会话和受限 IPC。
+2. **P1：契约与桌面骨架。** 引入 CMake、Tauri UI、版本化配置、状态/错误模型和受限 IPC；模拟会话仅用于测试，产品界面不伪装已连接。
    - 验收：三平台构建；配置迁移/拒绝策略与 Kotlin golden 测试通过；GUI 无特权；无明文秘密持久化。
 3. **P2：单隧道端到端。** 接入真实 OpenConnect、认证、Helper、平台路由/DNS 与系统凭据存储。
    - 验收：各支持平台连接、取消、失败回滚、崩溃恢复、退出清理及资源预算通过；如需浏览器认证单列测试。

@@ -1,0 +1,36 @@
+/* Hallmark · genre: modern-minimal · theme: Cobalt · adapted for a native VPN application */
+:root {
+  color-scheme: light;
+  --color-paper: #f6f8fc;
+  --color-surface: #ffffff;
+  --color-sidebar: #f0f3f9;
+  --color-ink: #18233b;
+  --color-muted: #59677f;
+  --color-soft: #e7ecf4;
+  --color-line: #dce3ef;
+  --color-accent: #2856d9;
+  --color-accent-hover: #2147b7;
+  --color-accent-soft: #e8efff;
+  --color-on-accent: #ffffff;
+  --color-warning: #84500e;
+  --color-warning-soft: #fff5e3;
+  --color-danger: #b03239;
+  --color-focus: #2856d9;
+  --color-overlay: #14244066;
+  --font-body: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Noto Sans", sans-serif;
+  --font-mono: "Cascadia Code", Consolas, monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --dur-fast: 140ms;
+  --ease-ui: ease-out;
+}

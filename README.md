@@ -1,14 +1,30 @@
 # GeekOCTunnel
 
-**轻量、无广告的 Android OpenConnect VPN 客户端，专注 ocserv 与 Cisco AnyConnect 兼容网关。**
+**轻量、无广告的 OpenConnect VPN 客户端，支持 Android、Windows 和 Linux，专注 ocserv 与 Cisco AnyConnect 兼容网关。**
 
-在手机上连接自建或组织提供的 VPN，访问受保护的内网资源。保留常用服务器，一键连接，并通过清晰的连接日志查看网关、地址、DNS 和路由。
+连接自建或组织提供的 VPN，访问受保护的内网资源。管理常用服务器、同时连接多个网络，并通过连接信息和日志查看地址、DNS、路由与认证状态。
 
-[下载最新 APK](https://github.com/def-Richard/GeekOCTunnel/releases/latest) · [使用与构建](#从源码构建) · [反馈问题](https://github.com/def-Richard/GeekOCTunnel/issues) · [隐私说明](PRIVACY.md)
+[下载 Windows / Linux](https://github.com/def-Richard/GeekOCTunnel/releases/tag/desktop-v0.1.0-preview.1) · [下载 Android](https://github.com/def-Richard/GeekOCTunnel/releases/latest) · [反馈问题](https://github.com/def-Richard/GeekOCTunnel/issues) · [隐私说明](PRIVACY.md)
 
-> 本项目是客户端，不提供 VPN 服务器、账号或订阅服务，也不是 Cisco 官方产品。你需要自己的兼容网关和登录凭据。当前发布为 **debug 签名的早期测试版本**，不代表生产级安全认证。
+> 本项目是客户端，不提供 VPN 服务器、账号或订阅服务，也不是 Cisco 官方产品。Android 使用 debug 签名；桌面端是未签名的预览版。
 
-## 能做什么
+**桌面端预览版：** Windows x64、Ubuntu 24.04 和 Debian 12 x64；macOS 尚未实现。
+桌面界面采用 **Tauri 2 + Web UI**，共用 C++ 配置、认证与 OpenConnect 会话核心。
+Windows 新预览支持多个 IPv4 分流连接、IP/路由/DNS 信息、诊断日志、临时故障自动重连，以及最小化到托盘；分发为单个 EXE，连接组件按需运行。
+设置页可控制托盘行为、自动重连、延迟释放 WebView 的极简模式和证书校验策略；每条连接可选 UDP，并显示实际的 TCP / DTLS 通道。
+托盘用不同图标区分未连接、正常连接、连接中、部分异常和失败；多连接显示已连通数量，Windows 悬停及托盘菜单可查看各服务器状态，极简模式下仍更新。
+Windows 和 Linux 共用设置与连接界面，重复启动会唤起原窗口；极简模式释放窗口后也可再次启动恢复。Linux 没有可用托盘时保留普通任务栏最小化，避免窗口无法找回。
+Windows 单实例与内存释放已通过真实窗口测试；Ubuntu/Debian 的多连接、重连、DTLS/TCP 和网络清理通过隔离容器验证，Linux 窗口交互使用 Xvfb 验证，尚不等同于实际桌面环境验收。
+详见 [桌面使用与构建](desktop/README.md)、[跨平台验证](doc/DESKTOP_PARITY_RESULTS.md) 和 [Windows 连接验证](doc/DESKTOP_WINDOWS_DIAGNOSTICS.md)。桌面预览版与 Android 分开发行。
+
+### 桌面端安装
+
+- **Windows**：解压 Windows x64 包，运行 `GeekOCTunnel.exe`。需要 WebView2 和 MSVC 运行库；主窗口不用以管理员身份运行。
+- **Linux**：解压 Linux x64 包，在该目录执行 `sudo bash ./Install-Linux.sh`。安装器自动补装运行依赖，包括 `libxml2`、`libsecret-tools` 和钥匙串组件，然后以普通用户从应用菜单启动。
+- Linux 的 DNS 配置需要已启用的 `systemd-resolved`；安装器会检查并提示，不会自动替换系统 DNS 管理器。保存密码需要当前桌面会话中的钥匙串已解锁。
+- 升级前退出旧客户端。配置保存在用户目录；密码保存在系统凭据库，不随服务器配置导出。
+
+## Android 功能
 
 | 功能 | 说明 |
 | --- | --- |

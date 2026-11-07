@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-vpn-send"
+description = "Enables the vpn_send command without any pre-configured scope."
+commands.allow = ["vpn_send"]
+
+[[permission]]
+identifier = "deny-vpn-send"
+description = "Denies the vpn_send command without any pre-configured scope."
+commands.deny = ["vpn_send"]

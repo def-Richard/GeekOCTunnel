@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-vpn-snapshot"
+description = "Enables the vpn_snapshot command without any pre-configured scope."
+commands.allow = ["vpn_snapshot"]
+
+[[permission]]
+identifier = "deny-vpn-snapshot"
+description = "Denies the vpn_snapshot command without any pre-configured scope."
+commands.deny = ["vpn_snapshot"]

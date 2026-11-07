@@ -1,0 +1,8 @@
+diff --git a/gnutls.c b/gnutls.c
+--- a/gnutls.c
++++ b/gnutls.c
+@@ -2362,2 +2362,3 @@ int openconnect_open_https(struct openconnect_info *vpninfo)
+-	gnutls_init(&vpninfo->https_sess, GNUTLS_CLIENT|GNUTLS_FORCE_CLIENT_CERT);
++	/* Let cstp_handshake poll the cancellation fd while TLS is stalled. */
++	gnutls_init(&vpninfo->https_sess, GNUTLS_CLIENT|GNUTLS_FORCE_CLIENT_CERT|GNUTLS_NONBLOCK);
+ 	gnutls_session_set_ptr(vpninfo->https_sess, (void *) vpninfo);

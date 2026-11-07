@@ -50,6 +50,8 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    sourceSets.getByName("test").resources.srcDir(rootProject.file("contracts/fixtures"))
 }
 
 dependencies {

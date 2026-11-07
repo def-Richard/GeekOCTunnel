@@ -6,6 +6,7 @@ local.properties
 .kotlin/
 .codex/
 .agents/
+.hallmark/
 .env
 .env.*
 *.apk
@@ -36,3 +37,10 @@ phone-*.xml
 /native/src/openconnect/
 /native/artifacts/logs/
 /native/artifacts/*/symbols/
+
+# Reproducible desktop frontend and native build outputs.
+node_modules/
+/desktop/frontend/dist/
+/desktop/frontend/src-tauri/target/
+/desktop/frontend/src-tauri/gen/
+/desktop/frontend/src-tauri/resources/native/

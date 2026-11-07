@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-set-close-behavior"
+description = "Enables the desktop_set_close_behavior command without any pre-configured scope."
+commands.allow = ["desktop_set_close_behavior"]
+
+[[permission]]
+identifier = "deny-desktop-set-close-behavior"
+description = "Denies the desktop_set_close_behavior command without any pre-configured scope."
+commands.deny = ["desktop_set_close_behavior"]
